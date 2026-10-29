@@ -1,0 +1,86 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Logs and runtime data
+logs/
+*.log
+*.sqlite
+*.sqlite3
+
+# Models and data artifacts
+# Keep the trained, documented artifacts in this repository. Large/generated
+# artifacts can still be ignored explicitly when they are not reproducible.
+models/*
+!models/champion_model.joblib
+!models/evaluation_report.json
+!models/feature_names.json
+!models/metadata.json
+data/cache/
+*.pkl
+*.joblib
+*.onnx
+!models/champion_model.joblib
+
+# Testing and coverage
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+htmlcov/
+
+# IDE and Editor configurations
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+Desktop.ini

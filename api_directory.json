@@ -1,0 +1,643 @@
+{
+  "total_endpoints": 9,
+  "timestamp": "2026-10-29T07:50:16.545Z",
+  "endpoints": [
+    {
+      "id": "gw-post-api-v1-orders",
+      "service": "Order Gateway",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "category": "Trading & Orders",
+      "description": "Submit an instantaneous BUY, SELL, SHORT, or COVER market order. Supports standard long buying/selling and two-way short selling: SHORT borrows and sells shares at market price (crediting cash balance with negative quantity), and COVER buys back borrowed shares to realize profit/loss: (Short Price - Cover Price) \u00d7 Shares. Optional \"date\" attribute records the market date at which decision was made, used to evaluate bot decision latency without affecting order execution price.",
+      "auth": "Bearer JWT (Team Token)",
+      "authBadge": "jwt",
+      "audience": "Participants & Bots",
+      "pacing": "Up to 200 orders/second per team during build and test stage (10-500 orders/second configurable in live simulation), subject to the global API limit.",
+      "is_participant": true,
+      "request_example": {
+        "headers": {
+          "Authorization": "Bearer <YOUR_TEAM_JWT_TOKEN>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "ticker": "AETX",
+          "action": "SHORT",
+          "quantity": 50,
+          "date": "2021-01-04"
+        }
+      },
+      "request_examples": [
+        {
+          "title": "BUY (Long Order)",
+          "description": "Buy shares at market price using available cash balance.",
+          "headers": {
+            "Authorization": "Bearer <YOUR_TEAM_JWT_TOKEN>",
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "ticker": "AETX",
+            "action": "BUY",
+            "quantity": 50,
+            "date": "2021-01-04"
+          }
+        },
+        {
+          "title": "SHORT (Two-Way Short Selling)",
+          "description": "Borrow and sell shares at market price to profit from price declines.",
+          "headers": {
+            "Authorization": "Bearer <YOUR_TEAM_JWT_TOKEN>",
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "ticker": "AETX",
+            "action": "SHORT",
+            "quantity": 50,
+            "date": "2021-01-04"
+          }
+        },
+        {
+          "title": "COVER (Close Short Position)",
+          "description": "Buy back borrowed short shares to realize profit/loss.",
+          "headers": {
+            "Authorization": "Bearer <YOUR_TEAM_JWT_TOKEN>",
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "ticker": "AETX",
+            "action": "COVER",
+            "quantity": 50,
+            "date": "2021-01-05"
+          }
+        },
+        {
+          "title": "SELL (Close Long Position)",
+          "description": "Sell owned shares to close out an active long holding.",
+          "headers": {
+            "Authorization": "Bearer <YOUR_TEAM_JWT_TOKEN>",
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "ticker": "AETX",
+            "action": "SELL",
+            "quantity": 50,
+            "date": "2021-01-05"
+          }
+        }
+      ],
+      "response_example": {
+        "status": 200,
+        "body": {
+          "order_id": "ord_8f21bc9e",
+          "status": "FILLED",
+          "ticker": "AETX",
+          "action": "SHORT",
+          "quantity": 50,
+          "execution_price": 1018.25,
+          "total_value": 50912.5,
+          "realized_pnl": 0,
+          "capital_remaining": 1050912.5,
+          "simulated_date": "2021-01-04",
+          "order_date": "2021-01-04",
+          "decision_delay": 1.25,
+          "executed_at": "2026-09-26T10:15:30.000Z"
+        }
+      },
+      "possible_errors": [
+        {
+          "status": 401,
+          "code": "UNAUTHORIZED",
+          "description": "Token missing, malformed, or expired.",
+          "resolution": "Pass Authorization: Bearer <token>. Re-authenticate via POST /api/v1/auth/login if expired."
+        },
+        {
+          "status": 403,
+          "code": "ACCOUNT_NOT_VERIFIED",
+          "description": "Team account is unverified. Orders cannot be executed until physically approved.",
+          "resolution": "A team member must visit the organizer registration desk to verify account credentials."
+        },
+        {
+          "status": 400,
+          "code": "SIMULATION_NOT_RUNNING",
+          "description": "Market simulation is currently stopped, idle, or paused. Orders are rejected outside live sessions.",
+          "resolution": "Wait until the simulation stage is active and market status indicates RUNNING."
+        },
+        {
+          "status": 400,
+          "code": "INSUFFICIENT_FUNDS",
+          "description": "Order value (Quantity \u00d7 Price) exceeds the available cash reserve for a BUY or COVER order.",
+          "resolution": "Reduce purchase quantity or cover existing short positions to free up capital."
+        },
+        {
+          "status": 400,
+          "code": "NO_SHORT_POSITION",
+          "description": "Attempted to COVER a ticker for which your team holds no open short position (quantity >= 0).",
+          "resolution": "Query GET /api/v1/portfolio to verify open short positions before submitting COVER orders."
+        },
+        {
+          "status": 400,
+          "code": "INSUFFICIENT_SHORT_POSITION",
+          "description": "Attempted to COVER more shorted shares than currently held.",
+          "resolution": "Check GET /api/v1/portfolio and submit COVER with quantity <= Math.abs(holding.quantity)."
+        },
+        {
+          "status": 400,
+          "code": "SHORT_SELLING_DISABLED",
+          "description": "Short selling is currently disabled by competition administrators.",
+          "resolution": "Verify feature flags via GET /api/v1/flags (SHORT_SELLING_ENABLED)."
+        },
+        {
+          "status": 400,
+          "code": "INVALID_TICKER",
+          "description": "The requested ticker symbol is not part of the active market simulation dataset.",
+          "resolution": "Verify valid active tickers via GET /api/v1/prices or market.ticks stream."
+        },
+        {
+          "status": 400,
+          "code": "INVALID_ORDER_BODY",
+          "description": "Invalid order parameters: quantity must be a positive integer, action must be BUY, SELL, SHORT, SHORT_SELL, or COVER.",
+          "resolution": "Correct JSON fields: ensure quantity is an integer > 0 and action is one of BUY, SELL, SHORT, SHORT_SELL, COVER."
+        },
+        {
+          "status": 429,
+          "code": "RATE_LIMITED",
+          "description": "The per-team order rate limit or global API limit was exceeded.",
+          "resolution": "Throttle trading bot order submission rate and implement exponential backoff."
+        }
+      ]
+    },
+    {
+      "id": "gw-get-api-v1-orders",
+      "service": "Order Gateway",
+      "method": "GET",
+      "path": "/api/v1/orders",
+      "category": "Trading & Orders",
+      "description": "Query historical order audit logs, execution fill prices, rejection reasons, and timestamps for your team. Executes at line speed with 0ms delay on Order Gateway.",
+      "auth": "Bearer JWT (Team Token)",
+      "authBadge": "jwt",
+      "audience": "Participants & Bots",
+      "pacing": "Real-time synchronous execution (0ms gateway delay)",
+      "is_participant": true,
+      "request_example": {
+        "headers": {
+          "Authorization": "Bearer <YOUR_TEAM_JWT_TOKEN>"
+        },
+        "query_params": {
+          "page": "1",
+          "limit": "50",
+          "status": "FILLED",
+          "action": "BUY",
+          "ticker": "ALPHACORP"
+        }
+      },
+      "response_example": {
+        "status": 200,
+        "body": {
+          "orders": [
+            {
+              "order_id": "ord_8f21bc9e",
+              "ticker": "AETX",
+              "action": "BUY",
+              "quantity": 100,
+              "price": 1018.25,
+              "total_cost": 101825,
+              "status": "FILLED",
+              "executed_at": "2026-09-26T10:15:30.000Z"
+            }
+          ],
+          "total": 1,
+          "page": 1,
+          "limit": 50,
+          "totalPages": 1
+        }
+      },
+      "possible_errors": [
+        {
+          "status": 401,
+          "code": "UNAUTHORIZED",
+          "description": "Bearer token is missing or invalid.",
+          "resolution": "Pass Authorization: Bearer <token> in request headers."
+        }
+      ]
+    },
+    {
+      "id": "gw-get-api-v1-portfolio",
+      "service": "Order Gateway",
+      "method": "GET",
+      "path": "/api/v1/portfolio",
+      "category": "Trading & Orders",
+      "description": "Retrieve current cash reserve, open stock holdings (both long and short), mark-to-market valuation, and realized/unrealized P&L. For short positions: quantity is negative, is_short is true, market_value is negative liability (quantity \u00d7 current_price), and unrealized_pnl is (avg_buy_price - current_price) \u00d7 |quantity|. Executes with 0ms delay on Order Gateway for high-speed bot execution.",
+      "auth": "Bearer JWT (Team Token)",
+      "authBadge": "jwt",
+      "audience": "Participants & Bots",
+      "pacing": "Real-time synchronous execution (0ms gateway delay)",
+      "is_participant": true,
+      "request_example": {
+        "headers": {
+          "Authorization": "Bearer <YOUR_TEAM_JWT_TOKEN>"
+        }
+      },
+      "response_example": {
+        "status": 200,
+        "body": {
+          "team_id": "team_8f21bc9e",
+          "team_name": "Alpha Traders",
+          "initial_capital": 1000000,
+          "capital_remaining": 900000,
+          "portfolio_market_value": 102500,
+          "total_wealth": 1006250,
+          "total_pnl": 21250,
+          "total_pnl_pct": 2.13,
+          "realized_pnl": 15000,
+          "unrealized_pnl": 6250,
+          "positions_count": 2,
+          "orders_count": 12,
+          "holdings": [
+            {
+              "ticker": "AETX",
+              "quantity": 100,
+              "average_buy_price": 1000,
+              "current_price": 1025,
+              "market_value": 102500,
+              "unrealized_pnl": 2500,
+              "unrealized_pnl_pct": 2.5,
+              "is_short": false
+            },
+            {
+              "ticker": "BETATECH",
+              "quantity": -50,
+              "average_buy_price": 1100,
+              "current_price": 1025,
+              "market_value": -51250,
+              "unrealized_pnl": 3750,
+              "unrealized_pnl_pct": 6.82,
+              "is_short": true
+            }
+          ]
+        }
+      },
+      "possible_errors": [
+        {
+          "status": 401,
+          "code": "UNAUTHORIZED",
+          "description": "Bearer token is missing or invalid.",
+          "resolution": "Pass Authorization: Bearer <token> in request headers."
+        }
+      ]
+    },
+    {
+      "id": "gw-get-api-v1-portfolio-cash",
+      "service": "Order Gateway",
+      "method": "GET",
+      "path": "/api/v1/portfolio/cash",
+      "category": "Trading & Orders",
+      "description": "High-speed lightweight cash balance query for trading bots to compute dynamic position sizes without valuation overhead. Executes with 0ms delay on Order Gateway.",
+      "auth": "Bearer JWT (Team Token)",
+      "authBadge": "jwt",
+      "audience": "Participants & Bots",
+      "pacing": "Real-time synchronous execution (0ms gateway delay)",
+      "is_participant": true,
+      "request_example": {
+        "headers": {
+          "Authorization": "Bearer <YOUR_TEAM_JWT_TOKEN>"
+        }
+      },
+      "response_example": {
+        "status": 200,
+        "body": {
+          "available_cash": 300000,
+          "capital_remaining": 300000,
+          "initial_capital": 1000000,
+          "realized_pnl": 15000,
+          "margin_locked": 0,
+          "currency": "INR"
+        }
+      },
+      "possible_errors": [
+        {
+          "status": 401,
+          "code": "UNAUTHORIZED",
+          "description": "Bearer token is missing or invalid.",
+          "resolution": "Supply valid Authorization: Bearer <token> header."
+        }
+      ]
+    },
+    {
+      "id": "gw-get-api-v1-stocks",
+      "service": "Order Gateway",
+      "method": "GET",
+      "path": "/api/v1/stocks",
+      "category": "Market Data & Prices",
+      "description": "Retrieve the authenticated list of stocks selected for the active simulation, including during READY and PRE-FLIGHT before the first market tick. Returns each ticker, masked company name, and concise business/product description (<100 words). Bots should fetch this list when pre-flight begins and build their tradable universe from it instead of hard-coding tickers.",
+      "auth": "Bearer JWT (Team Token)",
+      "authBadge": "jwt",
+      "audience": "Participants & Bots",
+      "pacing": "Fetch once when pre-flight begins; refresh only if the organizer selects a different simulation.",
+      "is_participant": true,
+      "request_example": {
+        "headers": {
+          "Authorization": "Bearer <YOUR_TEAM_JWT_TOKEN>"
+        }
+      },
+      "response_example": {
+        "status": 200,
+        "body": {
+          "status": "ok",
+          "stocks": [
+            {
+              "symbol": "AETX",
+              "ticker": "AETX",
+              "name": "Aethelgard Corp",
+              "description": "Aethelgard Corp is a global consumer technology company that designs, manufactures, and markets personal computing devices, mobile phones, and cloud services. Its flagship hardware portfolio includes AuraPhone smartphones, AuraBook laptops, AuraPad tablets, Aura Watch wearables, and AuraPods audio devices powered by custom Aura Silicon chips. The company also generates recurring revenue through AuraCloud storage, Aura Market digital software distribution, Aura Media streaming, and the AuraPay contactless payments platform."
+            },
+            {
+              "symbol": "NXON",
+              "ticker": "NXON",
+              "name": "Nexora Global Enterprises Inc.",
+              "description": "Nexora Global Enterprises Inc. is an e-commerce, cloud computing, and digital entertainment conglomerate. It operates an expansive online retail marketplace and physical FreshHarvest grocery stores, supported by its Nexora Plus subscription loyalty program. Its enterprise technology arm, Nexora Cloud Infrastructure (NCI), delivers scalable compute, database, and machine learning cloud services. Nexora also manufactures smart connected hardware, including the Nexora Smart Hub family, NexReader e-readers, and SecureDoor automated security cameras."
+            }
+          ]
+        }
+      },
+      "possible_errors": [
+        {
+          "status": 401,
+          "code": "UNAUTHORIZED",
+          "description": "Bearer token is missing or invalid.",
+          "resolution": "Pass Authorization: Bearer <token> in request headers."
+        }
+      ]
+    },
+    {
+      "id": "gw-get-api-v1-stocks-history",
+      "service": "Order Gateway",
+      "method": "GET",
+      "path": "/api/v1/stocks/history",
+      "category": "Market Data & Prices",
+      "description": "Retrieve up to 10 years of historical daily stock price data (OHLCV) for an actively traded ticker symbol. By default, returns daily OHLCV bars strictly prior to the current simulation date (anti-lookahead protection). Supports query parameters ?ticker=<SYMBOL>&start_date=<YYYY-MM-DD>&end_date=<YYYY-MM-DD> (or ?days=<NUM> for a rolling lookback window). If a stock was listed less than 10 years ago or the requested range exceeds its listing date, returns a clear error specifying the listing date.",
+      "auth": "Bearer JWT (Optional)",
+      "authBadge": "jwt",
+      "audience": "Participants & Bots",
+      "pacing": "Fetch on-demand during strategy initialization or periodic technical analysis lookbacks.",
+      "is_participant": true,
+      "request_example": {
+        "headers": {
+          "Authorization": "Bearer <YOUR_TEAM_JWT_TOKEN>"
+        },
+        "query_params": {
+          "ticker": "AETX",
+          "start_date": "2023-01-01",
+          "end_date": "2023-12-31"
+        }
+      },
+      "request_examples": [
+        {
+          "title": "Date Range (start_date & end_date)",
+          "description": "Fetch historical daily prices within an explicit calendar date range (both inclusive).",
+          "headers": {
+            "Authorization": "Bearer <YOUR_TEAM_JWT_TOKEN>"
+          },
+          "query_params": {
+            "ticker": "AETX",
+            "start_date": "2023-01-01",
+            "end_date": "2023-12-31"
+          }
+        },
+        {
+          "title": "Rolling Lookback (days)",
+          "description": "Fetch the most recent N calendar days of daily price bars strictly prior to the current simulation date.",
+          "headers": {
+            "Authorization": "Bearer <YOUR_TEAM_JWT_TOKEN>"
+          },
+          "query_params": {
+            "ticker": "AETX",
+            "days": "90"
+          }
+        },
+        {
+          "title": "Start Date Only (start_date)",
+          "description": "Fetch from a specific start date up through the latest available trading date before the current simulation date.",
+          "headers": {
+            "Authorization": "Bearer <YOUR_TEAM_JWT_TOKEN>"
+          },
+          "query_params": {
+            "ticker": "AETX",
+            "start_date": "2024-01-01"
+          }
+        }
+      ],
+      "response_example": {
+        "status": 200,
+        "body": {
+          "status": "ok",
+          "ticker": "AETX",
+          "current_simulation_date": "2024-10-25",
+          "requested_days": 365,
+          "date_range": {
+            "start": "2023-01-01",
+            "end": "2023-12-31"
+          },
+          "total_records": 250,
+          "prices": [
+            {
+              "date": "2023-01-03",
+              "open": 130.28,
+              "high": 130.9,
+              "low": 124.17,
+              "close": 125.07,
+              "volume": 112117500
+            }
+          ]
+        }
+      },
+      "response_examples": [
+        {
+          "title": "200 OK (Historical Prices Found)",
+          "description": "Successfully returns OHLCV records within requested range strictly prior to current simulation date.",
+          "status": 200,
+          "body": {
+            "status": "ok",
+            "ticker": "AETX",
+            "current_simulation_date": "2024-10-25",
+            "requested_days": 365,
+            "date_range": {
+              "start": "2023-01-01",
+              "end": "2023-12-31"
+            },
+            "total_records": 250,
+            "prices": [
+              {
+                "date": "2023-01-03",
+                "open": 130.28,
+                "high": 130.9,
+                "low": 124.17,
+                "close": 125.07,
+                "volume": 112117500
+              }
+            ]
+          }
+        },
+        {
+          "title": "400 Bad Request (Stock Not Listed in Range)",
+          "description": "Returned when the requested start_date or rolling 10-year window precedes the stock listing/IPO date. Includes the official listing_date so your bot can adjust its start date.",
+          "status": 400,
+          "body": {
+            "error": "TICKER_NOT_LISTED_IN_RANGE",
+            "message": "Historical data is not available for last 10 years / requested range because ticker 'PLNX' was not listed by that time (listing date: 2020-09-30).",
+            "ticker": "PLNX",
+            "listing_date": "2020-09-30",
+            "requested_start_date": "2016-01-01"
+          }
+        },
+        {
+          "title": "400 Bad Request (Anti-Lookahead Violation)",
+          "description": "Returned if end_date includes or exceeds the current simulation date. Future prices are strictly prohibited.",
+          "status": 400,
+          "body": {
+            "error": "INVALID_DATE_RANGE",
+            "message": "Requested end_date '2024-11-01' cannot include or exceed the current simulation date (2024-10-25). Future prices and lookahead are strictly prohibited.",
+            "current_simulation_date": "2024-10-25"
+          }
+        }
+      ],
+      "possible_errors": [
+        {
+          "status": 400,
+          "code": "INVALID_TICKER",
+          "description": "Ticker is not actively traded in the current market simulation.",
+          "resolution": "Verify active symbols from GET /api/v1/stocks before requesting historical data."
+        },
+        {
+          "status": 400,
+          "code": "TICKER_NOT_LISTED_IN_RANGE",
+          "description": "Historical data requested extends before the stock IPO/listing date.",
+          "resolution": "Adjust requested days or start_date to be on or after the stock listing date."
+        },
+        {
+          "status": 400,
+          "code": "INVALID_DATE_RANGE",
+          "description": "Requested end date is on or after the current simulation date (lookahead prevented).",
+          "resolution": "Historical data is only available for dates strictly prior to the current simulation date."
+        }
+      ]
+    },
+    {
+      "id": "gw-get-api-v1-simulation-clock",
+      "service": "Order Gateway",
+      "method": "GET",
+      "path": "/api/v1/simulation/clock",
+      "category": "Simulation Engine",
+      "description": "Canonical simulation clock for trading bots providing current day, total days, remaining days, interval speed, and simulated date. ZERO DELAY: Responds instantly without artificial delay to keep bot algorithms synchronized.",
+      "auth": "Public (No Auth)",
+      "authBadge": "public",
+      "audience": "Participants & Bots",
+      "pacing": "Real-time clock query (Zero delay; 1-3s interval for bot synchronization)",
+      "is_participant": true,
+      "request_example": {
+        "headers": {}
+      },
+      "response_example": {
+        "status": 200,
+        "body": {
+          "current_day": 12,
+          "total_days": 30,
+          "remaining_days": 18,
+          "seconds_per_day": 4,
+          "status": "RUNNING",
+          "simulated_date": "2021-01-16",
+          "is_preflight": false,
+          "is_paused": false
+        }
+      },
+      "possible_errors": [
+        {
+          "status": 503,
+          "code": "CLOCK_NOT_READY",
+          "description": "Simulation engine clock has not been initialized.",
+          "resolution": "Wait for the simulation round to be staged or started."
+        }
+      ]
+    },
+    {
+      "id": "gw-post-api-v1-bot-heartbeat",
+      "service": "Order Gateway",
+      "method": "POST",
+      "path": "/api/v1/bot/heartbeat",
+      "category": "Pre-Flight Readiness",
+      "description": "Acknowledge incoming pre-flight standby ping seq received from Kafka to prove bot process is online and responsive.",
+      "auth": "Bearer JWT (Team Token)",
+      "authBadge": "jwt",
+      "audience": "Participant Bots",
+      "pacing": "Pre-flight standby ticks (2.5s interval)",
+      "is_participant": true,
+      "request_example": {
+        "headers": {
+          "Authorization": "Bearer <YOUR_TEAM_JWT_TOKEN>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "seq": 5
+        }
+      },
+      "response_example": {
+        "status": 200,
+        "body": {
+          "status": "ok",
+          "message": "Heartbeat acknowledged",
+          "team_id": "team_8f21bc9e",
+          "seq": 5
+        }
+      },
+      "possible_errors": [
+        {
+          "status": 401,
+          "code": "UNAUTHORIZED",
+          "description": "Bearer token is missing or invalid.",
+          "resolution": "Supply valid Authorization: Bearer <token> in headers."
+        },
+        {
+          "status": 400,
+          "code": "INVALID_SEQ",
+          "description": "Missing or non-integer sequence number seq.",
+          "resolution": "Provide integer seq matching the preflight_tick event received from Kafka."
+        }
+      ]
+    },
+    {
+      "id": "gw-get-api-v1-stage",
+      "service": "Order Gateway",
+      "method": "GET",
+      "path": "/api/v1/stage",
+      "category": "Simulation Engine",
+      "description": "Query current platform lifecycle stage (development, ready, preflight, simulation), active database, and simulation progress. ZERO DELAY: Real-time query to detect simulation start, progress, and conclusion.",
+      "auth": "Public (No Auth)",
+      "authBadge": "public",
+      "audience": "Participants & Bots",
+      "pacing": "Real-time lifecycle query (Zero delay; 2-3s interval to track simulation lifecycle)",
+      "is_participant": true,
+      "request_example": {
+        "headers": {}
+      },
+      "response_example": {
+        "status": 200,
+        "body": {
+          "stage": "simulation",
+          "status": "RUNNING",
+          "has_run": true,
+          "simulation_id": "sim_nse_2026",
+          "interval_seconds": 4,
+          "total_days": 30,
+          "days_completed": 12,
+          "current_date": "2021-01-16"
+        }
+      },
+      "possible_errors": [
+        {
+          "status": 500,
+          "code": "STAGE_FETCH_ERROR",
+          "description": "Internal error querying simulation stage.",
+          "resolution": "Verify MongoDB connection and Order Gateway logs."
+        }
+      ]
+    }
+  ]
+}

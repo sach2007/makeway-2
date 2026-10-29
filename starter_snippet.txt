@@ -1,0 +1,121 @@
+mulated_date, tickData.ticker, tickData);
+        // Use tradableTickers for strategy decisions; submit orders only for this universe
+      }
+    },
+  });
+}
+
+main().catch(console.error);`,p=`package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+
+	"github.com/segmentio/kafka-go"
+)
+
+const (
+	gateway  = "${e}"
+	broker   = "${t}"
+	username = "${r}"
+)
+
+func main() {
+	// 1. Bearer access token (copied from Step 1 of the Participant Guide)
+	// Avoid calling POST /api/v1/auth/login repeatedly to prevent server overload
+	token := os.Getenv("BOT_ACCESS_TOKEN")
+	if token == "" {
+		token = "${i}"
+	}
+	authHeader := "Bearer " + token
+
+	// 2. Connect Kafka consumer to market topics
+	reader := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:     []string{broker},
+		GroupID:     "group-" + username,
+		GroupTopics: []string{"market.ticks", "market.news"},
+	})
+	defer reader.Close()
+
+	fmt.Printf("Connected to Kafka at %s as group-%s\\n", broker, username)
+
+	// 3. Process events loop
+	for {
+		msg, err := reader.ReadMessage(context.Background())
+		if err != nil {
+			panic(err)
+		}
+
+		var event map[string]interface{}
+		json.Unmarshal(msg.Value, &event)
+
+		eventType, _ := event["event_type"].(string)
+		if eventType == "" {
+			eventType, _ = event["event"].(string)
+		}
+
+		if eventType == "preflight_tick" {
+			// Acknowledge pre-flight heartbeat sequence
+			seq := event["seq"]
+			body, _ := json.Marshal(map[string]interface{}{"seq": seq})
+			req, _ := http.NewRequest("POST", gateway+"/api/v1/bot/heartbeat", bytes.NewReader(body))
+			req.Header.Set("Authorization", authHeader)
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := http.DefaultClient.Do(req)
+			if err == nil {
+				resp.Body.Close()
+			}
+		} else if msg.Topic == "market.ticks" {
+			fmt.Println("Market update:", event["simulated_date"], event["data"])
+		}
+	}
+}`,h=`// Add org.apache.kafka:kafka-clients to pom.xml
+import java.time.Duration;
+import java.util.*;
+import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.common.serialization.StringDeserializer;
+
+public class TradingBot {
+    public static void main(String[] args) {
+        String gateway = "${e}";
+        String broker = "${t}";
+        String username = "${r}";
+
+        // 1. Bearer access token (copied from Step 1 of the Participant Guide)
+        // Avoid calling POST /api/v1/auth/login repeatedly to prevent server overload
+        String token = System.getenv().getOrDefault("BOT_ACCESS_TOKEN", "${i}");
+        String authHeader = "Bearer " + token;
+
+        // 2. Configure Kafka Consumer
+        Properties props = new Properties();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, broker);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "group-" + username);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+
+        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
+        consumer.subscribe(List.of("market.ticks", "market.news"));
+
+        System.out.println("Subscribed to market topics on " + broker + ". Waiting for events...");
+
+        // 3. Poll Kafka and process events
+        while (true) {
+            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(250));
+            for (ConsumerRecord<String, String> record : records) {
+                System.out.println(record.topic() + ": " + record.value());
+
+                // Parse JSON event payload
+                // When event_type == "preflight_tick", acknowledge heartbeat:
+                // POST {"seq": event.seq} to \${gateway}/api/v1/bot/heartbeat
+                // with HTTP header Authorization: Bearer <access_token>
+            }
+        }
+    }
+}`,x={Python:{install:"pip install kafka-python requests",lang:"python",code:o},"Node.js":{install:"npm install kafkajs axios",lang:"javascript",code:c},Go:{install:"go get github.com/segmentio/kafka-go",lang:"go",code:p},Java:{install:"mvn dependency:get -Dartifact=org.apache.kafka:kafka-clients:3.7.0",lang:"java",code:h}}[a];return n.jsxs("div",{className:"space-y-3.5 rounded-xl border border-slate-800 bg-slate-950/70 p-4",children:[n.jsxs("div",{className:"flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3",children:[n.jsx("div",{className:"flex flex-wrap gap-2",children:["Python","Node.js","Go","Java"].map(g=>n.jsx("button",{type:"button",onClick:()=>l(g),className:`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${a===g?"bg-indigo-600 text-white shadow-md shadow-indigo-950/60":"border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"}`,children:g},g))}),n.jsx("span",{className:"text-[11px] text-slate-400",children:"Pre-configured

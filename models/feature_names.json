@@ -1,0 +1,18 @@
+[
+  "ret_1d",
+  "ret_3d",
+  "ret_5d",
+  "ret_10d",
+  "ema_5_20_ratio",
+  "sma_50_ratio",
+  "rsi_14_norm",
+  "macd_hist_ratio",
+  "bb_percent_b",
+  "bb_bandwidth",
+  "atr_ratio",
+  "volatility_10d",
+  "volatility_20d",
+  "volume_ratio",
+  "high_low_ratio",
+  "close_open_ratio"
+]

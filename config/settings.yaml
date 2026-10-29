@@ -1,0 +1,31 @@
+strategy:
+  lookback_short: 5
+  lookback_medium: 20
+  lookback_long: 50
+  signal_threshold: 0.3
+  no_trade_band: 0.1
+  cooldown_ticks: 3
+  momentum_weight: 0.35
+  trend_weight: 0.35
+  mean_reversion_weight: 0.2
+  news_weight: 0.1
+
+trading:
+  max_order_retries: 3
+  order_timeout_seconds: 10
+  rate_limit_per_second: 50
+  min_confidence: 0.3
+
+data:
+  tick_window_size: 100
+  history_warmup_days: 30
+  stale_data_threshold_seconds: 60
+  candle_interval_seconds: 300
+
+ml:
+  enabled: true
+  models_dir: "models"
+  ml_weight: 0.25
+  target_horizon: 3
+  cost_hurdle_bps: 20.0
+
